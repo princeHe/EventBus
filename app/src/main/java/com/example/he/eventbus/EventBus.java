@@ -1,8 +1,12 @@
 package com.example.he.eventbus;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
@@ -16,7 +20,7 @@ public class EventBus {
     private static EventBus instance;
 
     private EventBus() {
-
+        cacheMap = new HashMap<>();
     }
 
     public static EventBus getDefault() {
@@ -56,7 +60,7 @@ public class EventBus {
                 }
                 //拿到方法的参数数组
                 Class<?>[] parameters = method.getParameterTypes();
-                if (parameters.length != 0) {
+                if (parameters.length != 1) {
                     throw new RuntimeException("eventbus must be one parameter");
                 }
                 Class<?> parameter = parameters[0];
@@ -71,6 +75,26 @@ public class EventBus {
     }
 
     public void post(Object obj) {
-        
+        Set<Object> set = cacheMap.keySet();
+        Iterator iterator = set.iterator();
+        while (iterator.hasNext()) {
+            Object activity = iterator.next();
+            List<SubscribeMethod> list = cacheMap.get(activity);
+            for (SubscribeMethod method : list) {
+                if (method.getEventType().isAssignableFrom(obj.getClass())) {
+                    invoke(activity, method, obj);
+                }
+            }
+        }
+    }
+
+    private void invoke(Object activity, SubscribeMethod method, Object obj) {
+        try {
+            method.getMethod().invoke(activity, obj);
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        }
     }
 }
