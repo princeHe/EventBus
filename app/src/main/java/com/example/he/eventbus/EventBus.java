@@ -1,5 +1,8 @@
 package com.example.he.eventbus;
 
+import android.os.Handler;
+import android.os.Looper;
+
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -8,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Created by he on 2017/5/14.
@@ -17,10 +22,14 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class EventBus {
 
     private Map<Object, List<SubscribeMethod>> cacheMap;
+    private Handler mHandler;
+    private ExecutorService executorService;
     private static EventBus instance;
 
     private EventBus() {
         cacheMap = new HashMap<>();
+        mHandler = new Handler(Looper.getMainLooper());
+        executorService = Executors.newCachedThreadPool();
     }
 
     public static EventBus getDefault() {
@@ -74,15 +83,46 @@ public class EventBus {
         return list;
     }
 
-    public void post(Object obj) {
+    public void post(final Object obj) {
         Set<Object> set = cacheMap.keySet();
         Iterator iterator = set.iterator();
         while (iterator.hasNext()) {
-            Object activity = iterator.next();
+            final Object activity = iterator.next();
             List<SubscribeMethod> list = cacheMap.get(activity);
-            for (SubscribeMethod method : list) {
+            for (final SubscribeMethod method : list) {
                 if (method.getEventType().isAssignableFrom(obj.getClass())) {
-                    invoke(activity, method, obj);
+                    //判断当前接收方法在哪个线程
+                    switch (method.getThreadMode()) {
+                        case PostThread:
+                            invoke(activity, method, obj);
+                            break;
+                        case MainThread:
+                            //判断发送线程是那个线程  发送线程就是在主线程，不需要线程切换
+                            if (Looper.myLooper() == Looper.getMainLooper()) {
+                                invoke(activity, method, obj);
+                            } else {
+                                mHandler.post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        invoke(activity, method, obj);
+                                    }
+                                });
+                            }
+                            break;
+                        case BackgroundThread:
+                            if (Looper.getMainLooper() != Looper.myLooper()) {
+                                invoke(activity, method, obj);
+                            } else {
+                                executorService.execute(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        invoke(activity, method, obj);
+                                    }
+                                });
+                            }
+                            break;
+                    }
+
                 }
             }
         }
