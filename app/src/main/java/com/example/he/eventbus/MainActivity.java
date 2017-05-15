@@ -16,7 +16,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Subscribe(ThreadMode.MainThread)
-    public void receive(String content) {
+    public void receive(Friend content) {
         System.out.println(content.toString());
         Log.e("he", content.toString());
     }
