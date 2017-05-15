@@ -24,4 +24,9 @@ public class MainActivity extends AppCompatActivity {
         startActivity(new Intent(this, SecondActivity.class));
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        EventBus.getDefault().unregister(this);
+    }
 }

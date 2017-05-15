@@ -137,4 +137,9 @@ public class EventBus {
             e.printStackTrace();
         }
     }
+
+    public void unregister(Object obj) {
+        cacheMap.remove(obj);
+
+    }
 }
